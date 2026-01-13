@@ -1,0 +1,5 @@
+BEGIN;
+CREATE SCHEMA IF NOT EXISTS auth;
+
+ALTER SCHEMA auth OWNER TO medilink_dba;
+COMMIT;
