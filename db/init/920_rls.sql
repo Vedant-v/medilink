@@ -32,6 +32,13 @@ USING (
     AND deleted_at IS null
 );
 
+CREATE POLICY users_select_by_ops
+ON auth.users
+FOR SELECT
+TO medilink_ops
+USING (deleted_at IS null);
+
+
 CREATE POLICY users_self_update
 ON auth.users
 FOR UPDATE

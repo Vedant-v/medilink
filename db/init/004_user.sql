@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS auth.users (
     last_name text NOT NULL,
     email text NOT NULL UNIQUE,
     CHECK (email ~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    phone_number text UNIQUE,
+    CHECK (phone_number ~ '^\+?[1-9]\d{1,14}$'),
     p_role auth.primary_role NOT NULL DEFAULT 'patient',
     is_active boolean DEFAULT TRUE,
     is_verified boolean DEFAULT FALSE,

@@ -14,6 +14,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO medilink_ops;
 
 GRANT medilink_ops TO authenticator;
 GRANT EXECUTE ON FUNCTION auth.debug_role() TO medilink_ops;
+GRANT EXECUTE ON FUNCTION auth.get_user_for_login(text) TO medilink_ops;
 
 
 COMMIT;
