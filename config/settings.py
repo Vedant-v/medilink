@@ -12,6 +12,17 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
+import os
+
+# JWT Configuration
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', '568793549c2aa2c2bc59c5b457665b0198156004f2311f1625d111beada6ee5012af37b5376268b362951f346ff00ce93fdb50319e5574c830ff132b8ff3faf6')
+JWT_ISSUER = 'medilink-auth'
+JWT_AUDIENCE = 'medilink'
+JWT_ACCESS_TOKEN_TTL_SECONDS = 15 * 60  # 15 minutes
+
+# PostgREST Configuration
+POSTGREST_URL = os.getenv('POSTGREST_URL', 'http://postgrest:3000')
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

@@ -10,7 +10,6 @@ PH = PasswordHasher()
 
 # IMPORTANT:
 # Public self-registration MUST be restricted
-DEFAULT_PUBLIC_ROLE = "patient"
 
 
 class Registration:
@@ -27,6 +26,7 @@ class Registration:
         self.last_name = data.get("last_name")
 
         self.phone_number = data.get("phone_number")
+        self.p_role = data.get("primary_role")
 
         self.postgrest_url = os.getenv("POSTGREST_URL", "http://postgrest:3000")
         self.service_jwt = generate_service_access_token()
@@ -118,7 +118,7 @@ class Registration:
             "last_name": self.last_name,
             "phone_number": self.phone_number,
             # CRITICAL: role assigned by backend, not client
-            "p_role": DEFAULT_PUBLIC_ROLE,
+            "p_role": self.p_role or "patient",
         }
 
         headers = {
