@@ -1,14 +1,12 @@
 import time
-from typing import Dict
+from typing import Dict, Optional
 import jwt
 
 # =========================
 # Global configuration
 # =========================
 
-# MUST be the same secret used in PostgREST config
 JWT_SECRET = "568793549c2aa2c2bc59c5b457665b0198156004f2311f1625d111beada6ee5012af37b5376268b362951f346ff00ce93fdb50319e5574c830ff132b8ff3faf6"
-
 JWT_ALGORITHM = "HS256"
 JWT_AUDIENCE = "medilink"
 
@@ -40,7 +38,13 @@ def _encode_jwt(payload: Dict, ttl_seconds: int) -> str:
 # User JWT (client-facing)
 # =========================
 
-def generate_user_access_token(user_id: str, role: str) -> str:
+def generate_user_access_token(
+    *,
+    user_id: str,
+    role: str,
+    session_id: Optional[str] = None,
+    p_role: str,
+) -> str:
     if not user_id:
         raise ValueError("user_id is required")
 
@@ -48,10 +52,15 @@ def generate_user_access_token(user_id: str, role: str) -> str:
         raise ValueError("role is required")
 
     payload = {
-        "sub": user_id,          # user identity
-        "role": role,            # used by RLS
+        "sub": user_id,
+        "role": "authenticated",   # PHYSICAL DB ROLE
+        "p_role": p_role,          # BUSINESS ROLE
         "iss": "medilink-auth",
     }
+
+    # OPTIONAL but STRONGLY RECOMMENDED
+    if session_id:
+        payload["sid"] = session_id  # session binding
 
     return _encode_jwt(payload, USER_JWT_TTL_SECONDS)
 
@@ -61,11 +70,6 @@ def generate_user_access_token(user_id: str, role: str) -> str:
 # =========================
 
 def generate_service_access_token() -> str:
-    """
-    Backend → PostgREST token.
-    Never exposed to clients.
-    """
-
     payload = {
         "role": "medilink_ops",
         "iss": "medilink-backend",

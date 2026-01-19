@@ -1,7 +1,7 @@
 from django.http import JsonResponse
 import json
 
-from authentication.services.Registretion import Registretion 
+from authentication.services.Registretion import Registration 
 from authentication.services.Login import LoginService
 
 
@@ -35,7 +35,7 @@ def register_view(request):
             status=400,
         )
 
-    registration_service = Registretion(data)
+    registration_service = Registration(data)
 
     return registration_service.register()
 

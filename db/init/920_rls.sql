@@ -57,38 +57,44 @@ WITH CHECK (
 -- =========================================================
 
 -- Users can manage ONLY their own sessions
-CREATE POLICY sessions_owner
+DROP POLICY IF EXISTS sessions_owner ON auth.sessions;
+
+CREATE POLICY sessions_select
 ON auth.sessions
-FOR ALL
+FOR SELECT
 USING (
     user_id = current_setting('request.jwt.claims.sub', true)::uuid
 );
 
+CREATE POLICY sessions_delete
+ON auth.sessions
+FOR DELETE
+USING (
+    user_id = current_setting('request.jwt.claims.sub', true)::uuid
+);
 
 -- =========================================================
 -- 5. SESSION TOKENS POLICIES
 -- =========================================================
 
 -- Tokens are accessible ONLY via user's sessions
-CREATE POLICY tokens_via_session
+CREATE POLICY tokens_insert_backend
 ON auth.session_tokens
-FOR ALL
-USING (
-    session_id IN (
-        SELECT s.id
-        FROM auth.sessions AS s
-        WHERE s.user_id = current_setting('request.jwt.claims.sub', true)::uuid
-    )
-);
-
-
-CREATE POLICY users_insert_service
-ON auth.users
 FOR INSERT
 TO medilink_ops
 WITH CHECK (true);
 
+CREATE POLICY tokens_update_backend
+ON auth.session_tokens
+FOR UPDATE
+TO medilink_ops
+USING (true);
 
+CREATE POLICY tokens_delete_backend
+ON auth.session_tokens
+FOR DELETE
+TO medilink_ops
+USING (true);
 -- =========================================================
 -- 6. OPTIONAL: BLOCK ANONYMOUS ACCESS EXPLICITLY
 -- =========================================================
@@ -97,6 +103,57 @@ WITH CHECK (true);
 REVOKE ALL ON auth.users FROM public;
 REVOKE ALL ON auth.sessions FROM public;
 REVOKE ALL ON auth.session_tokens FROM public;
+-- one physical role for all authenticated users
+CREATE ROLE authenticated NOLOGIN;
+
+-- allow PostgREST to switch to it
+GRANT authenticated TO medilink_ops;
+
+-- schema access
+GRANT USAGE ON SCHEMA auth, appointments, public TO authenticated;
+
+-- table access
+GRANT SELECT ON auth.users TO authenticated;
+GRANT ALL ON appointments.appointments TO authenticated;
+
+-- sequences
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA appointments TO authenticated;
+
+DROP POLICY IF EXISTS patient_view_own ON appointments.appointments;
+CREATE POLICY patient_view_own
+ON appointments.appointments
+FOR SELECT
+TO authenticated
+USING (
+    (current_setting('request.jwt.claims', true)::json ->> 'p_role') = 'patient'
+    AND patient_id = (current_setting('request.jwt.claims', true)::json ->> 'sub')::uuid
+    AND deleted_at IS null
+);
+
+DROP POLICY IF EXISTS doctor_view_own ON appointments.appointments;
+CREATE POLICY doctor_view_own
+ON appointments.appointments
+FOR SELECT
+TO authenticated
+USING (
+    (current_setting('request.jwt.claims', true)::json ->> 'p_role') = 'doctor'
+    AND doctor_id = (current_setting('request.jwt.claims', true)::json ->> 'sub')::uuid
+    AND deleted_at IS null
+);
+
+
+-- allow PostgREST to switch to it
+GRANT authenticated TO medilink_ops;
+
+-- schema access
+GRANT USAGE ON SCHEMA auth, appointments, public TO authenticated;
+
+-- table access
+GRANT SELECT ON auth.users TO authenticated;
+GRANT ALL ON appointments.appointments TO authenticated;
+
+-- sequences
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA appointments TO authenticated;
 
 
 COMMIT;

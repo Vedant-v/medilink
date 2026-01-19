@@ -1,38 +1,19 @@
 import re
 import os
-import json
 import requests
 from argon2 import PasswordHasher
 from django.http import JsonResponse
 
-from authentication.services.jwt_tokens import (
-    generate_service_access_token,
-    generate_user_access_token,
-)
+from authentication.services.jwt_tokens import generate_service_access_token
 
-# Argon2 should be a singleton
 PH = PasswordHasher()
 
-# Explicit role whitelist (CRITICAL)
-ALLOWED_P_ROLES = {
-    'patient',
-    'doctor',
-    'nurse',
-    'receptionist',
-    'lab_technician',
-    'pharmacist',
-    'radiologist',
-    'therapist',
-    'surgeon',
-    'anesthesiologist',
-    'paramedic',
-    'dietitian',
-    'medical_assistant',
-    'healthcare_admin',
-}
+# IMPORTANT:
+# Public self-registration MUST be restricted
+DEFAULT_PUBLIC_ROLE = "patient"
 
 
-class Registretion:
+class Registration:
     def __init__(self, data):
         self.data = data
         self.errors = {}
@@ -46,11 +27,9 @@ class Registretion:
         self.last_name = data.get("last_name")
 
         self.phone_number = data.get("phone_number")
-        self.primary_role = data.get("primary_role")  # maps to p_role
 
         self.postgrest_url = os.getenv("POSTGREST_URL", "http://postgrest:3000")
         self.service_jwt = generate_service_access_token()
-        print("SERVICE JWT:", self.service_jwt, flush=True)
 
     # --------------------
     # Validation helpers
@@ -95,8 +74,10 @@ class Registretion:
     # --------------------
 
     def validate(self):
+        print("POSTGREST_URL =", self.postgrest_url)
+
         if not self.username or len(self.username) < 4:
-            self.errors["username"] = "Username must be at least 4 characters long."
+            self.errors["username"] = "Username must be at least 4 characters."
 
         if not self.email or not self.is_valid_email():
             self.errors["email"] = "Invalid email format."
@@ -114,10 +95,7 @@ class Registretion:
             self.errors["last_name"] = "Last name too short."
 
         if self.phone_number and not re.match(r"^\+?[1-9]\d{1,14}$", self.phone_number):
-            self.errors["phone_number"] = "Invalid phone number format."
-
-        if not self.primary_role or self.primary_role not in ALLOWED_P_ROLES:
-            self.errors["p_role"] = "Invalid or unauthorized role."
+            self.errors["phone_number"] = "Invalid phone number."
 
         return not self.errors
 
@@ -125,20 +103,22 @@ class Registretion:
     # DB insert
     # --------------------
 
-    def pushing_to_db(self):
+    def insert_user(self):
         if not self.validate():
             return {"ok": False, "errors": self.errors}
 
         password_hash = PH.hash(self.password)
 
         user_record = {
-            "password_hash": password_hash,
             "username": self.username,
+            "email": self.email,
+            "password_hash": password_hash,
             "first_name": self.first_name,
             "middle_name": self.middle_name or "",
             "last_name": self.last_name,
-            "email": self.email,
-            "p_role": self.primary_role,
+            "phone_number": self.phone_number,
+            # CRITICAL: role assigned by backend, not client
+            "p_role": DEFAULT_PUBLIC_ROLE,
         }
 
         headers = {
@@ -168,11 +148,12 @@ class Registretion:
     # --------------------
 
     def register(self):
-        result = self.pushing_to_db()
+        result = self.insert_user()
 
         if not result["ok"]:
             return JsonResponse(
-                {
+                {   
+                    "ok": False,
                     "error": "Registration failed",
                     "details": result.get("errors") or result.get("error"),
                 },
@@ -181,18 +162,14 @@ class Registretion:
 
         user = result["user"]
 
-        user_token = generate_user_access_token(
-            user_id=user["id"],
-            role=user["p_role"],
-        )
-
+        # NO TOKEN ISSUED HERE
         return JsonResponse(
             {
+                "ok": True,
                 "message": "Registration successful",
                 "user_id": user["id"],
                 "username": user["username"],
                 "email": user["email"],
-                "token": user_token,
             },
             status=201,
         )
