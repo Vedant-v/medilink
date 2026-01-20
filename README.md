@@ -9,6 +9,6 @@ curl -X POST http://localhost:8000/auth/register/   -H "Content-Type: applicatio
 >     "email": "vedant@example.com",
 >     "password": "Strong@Pass123",
 >     "first_name": "Vedant",
->     "last_name": "Patil",
+>     "last_name": "kulkarni",
 >     "primary_role": "doctor"
 >   }'
